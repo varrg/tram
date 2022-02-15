@@ -105,20 +105,20 @@ Provide a subclass by prepending it to the method. Classes can not be mixed:
 Multiple methods in the same class may be specified:
 > `"Sanitize=clean|proper"`
 
-Available classes are [`Unique`](lib/Scheme/Rename/Unique.php) and [`Sanitize`](lib/Scheme/Rename/Sanitize.php).
+Available classes are [`Unique`](lib/Scheme/Rename/Unique.php), [`Sanitize`](lib/Scheme/Rename/Sanitize.php) and [`Meta`](lib/Scheme/Rename/Meta.php).
 
 [`Unique`](lib/Scheme/Rename/Unique.php) is used if omitted.
 
 #### Renaming schemes
-
-- `"time"`:
-  `"20220129T140829Z0100.txt"`
 
 - `"hex[:length]"`:
   `"6e154dfc.txt"`
 
 - `"int[:length]"`:
   `"8737.txt"`
+  
+- `"Meta=time"`:
+  `"20220129T140829Z0100.txt"`
 
 - `"Sanitize=clean"`
   
