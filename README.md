@@ -1,8 +1,6 @@
 # Tram - File upload server
 
-Adjust logic by passing options to the constructor.
-
-See [Options](#options) for an in depth description.
+Adjust logic by passing [options](#options) to the constructor.
 
 ## Renaming
 By default, existing files are not overwritten but applied a renaming scheme until a collision is avoided.
