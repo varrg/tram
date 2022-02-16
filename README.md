@@ -263,7 +263,7 @@ Permission mode for saved files.
 
 ## Usage
 ```php
-$track = new Track(["max_filesize" => 4]);
+$track = new Tram\Track(["max_filesize" => 4]);
 $route = $track->stop("profile_images")->transit("/avatars");
 
 foreach ($route as $file) {
@@ -281,3 +281,61 @@ $files = $route->transit("/avatars")->transit("/backup")->tally();
 ```
 
 The [`Route`](lib/Route.php) object returned from [`stop()`](lib/Track.php) is **JSON** encodable.
+
+## Custom scheme
+Let's implement a renaming scheme that names photographs according to their metadata.
+
+We'll want names to contain the date the photo was taken, the width and height of the photo and the camera model taken with.
+
+Because names may be duplicates, we'll want a [`Pure`](lib/Scheme/Rename/Pure.php) scheme so that collisions are handled by [`default_rename`](#default_rename) instead.
+
+A suitable class is [`Meta`](lib/Scheme/Rename/Meta.php), let's add a method to it:
+```php
+namespace Tram\Scheme\Rename;
+
+class Meta extends Unique implements Pure {
+  /* ... */
+  public function DSC(File $file): string {}
+}
+```
+
+We could just as well create a whole new class, extend a suitable class or the [base class](lib/Scheme/Rename/Prototype), or even use a `callable`.
+Having our class implement [`Pure`](lib/Scheme/Rename/Pure.php) is a simple way to not have to worry about file collision prevention.
+
+For our implementation, we'll want it to handle non-images and images without metadata as well.
+
+Let's write a fail-safe approach:
+```php
+public function DSC(File $file): string {
+  static $exif;
+  $exif ??= function_exists("exif_read_data");  /* cache lookup */
+
+  $data = getimagesize($file->path);
+
+  /* not an image */
+  if (!$data or $data[2] < 1) {
+    return date("Y-m-d_H-i-s", filemtime($file->path)?? time());
+  }
+
+  /* getimagesize() gives us the width and height */
+  $resolution = "@{$data[0]}x{$data[1]}";
+  /* if possible, read metadata */
+  $meta = $exif? exif_read_data($file->path, "IFD0", true) : [];
+  /* try different metadatas, resort to the file time */
+  $time = $meta["EXIF"]["DateTimeOriginal"]?? 
+          $meta["IFD0"]["DateTime"]??
+          date("Y:m:d H:i:s", $meta["FILE"]["FileDateTime"]?? filemtime($file->path)?? time());
+  $time = strtr($time, ": ", "-_");  /* rewrite the date to the same format as for non-images */
+  $model = isset($meta["IFD0"]["Model"])? "_".str_replace(" ", "", $meta["IFD0"]["Model"]) : "";
+
+  return $time.$resolution.$model;  /* The parent class Unique provides the file extension */
+}
+```
+
+Provide it as an option:
+```php
+$track = new Tram\Track([
+  "rename" => "Meta=DSC"
+]);
+```
+
