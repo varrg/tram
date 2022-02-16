@@ -283,6 +283,7 @@ $files = $route->transit("/avatars")->transit("/backup")->tally();
 The [`Route`](lib/Route.php) object returned from [`stop()`](lib/Track.php) is **JSON** encodable.
 
 ## Custom scheme
+### Renaming scheme
 Let's implement a renaming scheme that names photographs according to their metadata.
 
 We'll want names to contain the date the photo was taken, the width and height of the photo and the camera model taken with.
@@ -300,10 +301,9 @@ class Meta extends Unique implements Pure {
 ```
 
 We could just as well create a whole new class, extend a suitable class or the [base class](lib/Scheme/Rename/Prototype), or even use a `callable`.
-Having our class implement [`Pure`](lib/Scheme/Rename/Pure.php) is a simple way to not have to worry about file collision prevention.
+Having our class implement [`Pure`](lib/Scheme/Rename/Pure.php) is a simple way not to worry about file collision prevention.
 
 For our implementation, we'll want it to handle non-images and images without metadata as well.
-
 Let's write a fail-safe approach:
 ```php
 public function DSC(File $file): string {
