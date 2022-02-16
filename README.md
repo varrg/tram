@@ -69,13 +69,18 @@ Only successful files are saved, but all are available for inspection.
 ## Options
 
 ### `max_filesize`
-`int|float` default: `null`
+`int|float|string|callable|Scheme\Validate\Prototype` default: `null`
 
 Max filesize in megabytes.
 
 PHP limits filesize with the [`upload_max_filesize`](https://www.php.net/manual/en/ini.core.php#ini.upload-max-filesize) and [`post_max_size`](https://www.php.net/manual/en/ini.core.php#ini.post-max-size) directives in `php.ini`.
 
 If this setting exceed one of those, the same error will be returned, but no transfer will have happened.
+
+This setting is just as versatile as [`validate`](#validate) but also supports numbers as 
+a shorthand for `"filesize:limit"`.
+
+Selective limiting can easily be achieved by supplying a method that restricts differently depending on filetype.
 
 ### `overwrite`
 `bool` default: `false`
