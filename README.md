@@ -5,7 +5,7 @@ Adjust logic by passing [options](#options) to the constructor.
 Filenames are stripped of leading and trailing space, and trailing dot.
 This is also applied everytime the file is renamed.
 
-By default, existing files are not overwritten but applied a renaming scheme until a collision is avoided.
+By default, existing files are not overwritten but applied a renaming scheme instead.
 
 **[rename](#rename)** default: `null`
 
@@ -24,13 +24,6 @@ Built in classes to cover most requirements:
   
   Rename file according to characteristics of it.
 
-### File collision
-By default, the renaming scheme will be applied again and again with the same arguments and 
-methods must ensure a collision is eventually solved.
-
-All schemes implementing **[Pure](lib/Scheme/Rename/Pure.php)**, on the other hand, are only 
-applied once and for any file collision the [default_rename](#default_rename) is applied instead.
-
 If the file already exists and no scheme is provided, [default_rename](#default_rename) will be applied.
 
 [Available schemes](#schemes)
@@ -46,20 +39,12 @@ This security check is applied before any renaming.
 
 **[validate](#validate)** default: `null`
 
-Providing `"Mimetype=image"` will only accept image types.
+Providing `"Common=image"` will only accept image types.
 
 Built in classes to cover most requirements:
-- **[Mimetype](lib/Scheme/Validate/Mimetype.php)**
+- **[Common](lib/Scheme/Validate/Common.php)**
   
-  Only accept certain types of files.
-  
-- **[Filename](lib/Scheme/Validate/Filename.php)**
-  
-  Reject or require characters or strings in filenames.
-  
-- **[Filedata](lib/Scheme/Validate/Filedata.php)**
-  
-  Only accept files with certain characteristics.
+  Validate mimetype, filename and characteristics of files.
 
 ### Multiple methods
 When supplying multiple methods there are two distinct ways to validate.
@@ -98,9 +83,9 @@ PHP limits filesize with the [upload_max_filesize](https://www.php.net/manual/en
 If this setting exceed one of those, the same error will be returned, but no transfer will have happened.
 
 This setting is just as versatile as [validate](#validate) but also supports numbers as 
-a shorthand for `"Filedata=size:limit"`.
+a shorthand for `"Common=filesize:limit"`.
 
-[How to implement a custom class](#filesize-validating-scheme)
+[How to implement a custom scheme](#custom-scheme)
 
 ### overwrite
 `bool` default: `false`
@@ -183,7 +168,7 @@ Multiple methods in the same class may be specified:
   
   Applies [default_rename](#default_rename) if file exists and [overwrite](#overwrite) is `false`.
 
-[How to implement a custom class](#renaming-scheme)
+[How to implement a custom scheme](#custom-scheme)
 
 ### validate
 `string|callable|Scheme\Validate\Validate` default: `null`
@@ -195,12 +180,12 @@ Strings must adhere to syntax:
 > `["Every"|"Some"] class=method[:arguments]...`
 [Syntax description](#option-syntax-description)
 
-> `"Mimetype=whitelist:image/jpeg,text/plain"`
+> `"Common=whitelist:image/jpeg,text/plain"`
 
 Prepend with the preferred algorithm:
-> `"Every Mimetype=image|blacklist:image/x-icon"`: Files must be an image **and** not an ICO image.
+> `"Every Common=image|blacklist:image/x-icon"`: Files must be an image **and** not an ICO image.
 
-> `"Some Mimetype=image|whitelist:text/plain"`: Files must be **either** an image or text.
+> `"Some Common=image|whitelist:text/plain"`: Files must be **either** an image or text.
 
 `"Every"` is used if omitted.
 
@@ -209,19 +194,17 @@ Filesize is automatically limited to [max_filesize](#max_filesize).
 Filenames resembling malicious inputs are automatically invalidated.
 
 Multiple methods in the same class may be specified:
-> `"Some Mimetype=image|whitelist:text/plain"`
+> `"Some Common=image|whitelist:text/plain"`
 
 #### Schemes
-- **[Mimetype](lib/Scheme/Validate/Mimetype.php)**
-  - `"Mimetype=image[:mimetypes]"`
+- `"Common=image[:mimetypes]"`
   
-    Reliably validate files as images, optionally a subset of mimetypes.
+  Reliably validate files as images, optionally a subset of mimetypes.
 
-  - `"Mimetype=whitelist:mimetypes"`
-  - `"Mimetype=blacklist:mimetypes"`
-- **[Filename](lib/Scheme/Validate/Filename.php)**
-  - `"Filename=only:characters"`
-  - `"Filename=none:characters"`
+- `"Common=whitelist:mimetypes"`
+- `"Common=blacklist:mimetypes"`
+- `"Common=only:characters"`
+- `"Common=none:characters"`
 
 - `callable`
   ```php
@@ -232,32 +215,34 @@ Multiple methods in the same class may be specified:
     (fn($file) => 
       $this->image($file) && 
       preg_match("/^[A-Za-z0-9._-]+$/", $file->filename) === 1
-    )->bindTo(new Scheme\Validate\Mimetype);
+    )->bindTo(new Scheme\Validate\Common);
     ```
 
 - **[Scheme\Validate\Validate](lib/Scheme/Validate/Validate.php)**
-  - Same as `"Mimetype=whitelist:image/jpeg,text/plain"`:
+  - Same as `"Common=whitelist:image/jpeg,text/plain"`:
     ```php
-    new Scheme\Validate\Mimetype(["whitelist" => ["image/jpeg", "text/plain"]]);
+    new Scheme\Validate\Common(["whitelist" => ["image/jpeg", "text/plain"]]);
     ```
     
-  - Same as `"Mimetype=image"`:
+  - Same as `"Common=image"`:
     ```php
-    (new Scheme\Validate\Mimetype)->image(...);
-    [new Scheme\Validate\Mimetype, "image"];
+    (new Scheme\Validate\Common)->image(...);
+    [new Scheme\Validate\Common, "image"];
     ```
 
 - `null`
   
   No validation is applied.
 
-[How to implement a custom class](#validating-scheme)
+[How to implement a custom scheme](#custom-scheme)
 
 ### default_rename
 `string|callable|Scheme\Rename\Rename` default: `"append Random=int"`
 
 How files are renamed if the file already exists, [overwrite](#overwrite) is `false` and
 there is no [rename](#rename) scheme provided or the provided one is a **[`Pure`](lib/Scheme/Rename/Pure.php)** scheme.
+
+***The provided scheme must eventually solve a file collision if applied again and again with the same arguments.***
 
 [See rename for more](#rename)
 
@@ -294,6 +279,21 @@ The **[Route](lib/Route.php)** object returned from **[`stop()`](lib/Track.php)*
 
 ## Custom scheme
 ### Renaming scheme
+#### Translation and Generation
+Renaming schemes take one of two forms:
+- **[Translate](lib/Scheme/Rename/Translate.php)**
+  - All methods are applied in sequence, each receiving the result of the previous method.
+  - Methods return the complete filename and may change extension.
+- **[Generate](lib/Scheme/Rename/Generate.php)**
+  - Only the first method is applied.
+  - Methods return the filename **without** extension and may **not** change extension.
+
+On top of that, a scheme may signal that it is unable to solve file collisions:
+- **[Pure](lib/Scheme/Rename/Pure.php)**
+  - Methods are only applied once.
+  - [default_rename](#default_rename) is applied in case of a file collision.
+
+### Example #1
 Let's implement a renaming scheme that names photographs according to their metadata.
 
 We'll want names to contain the date the photo was taken, the width and height of the photo and the camera model taken with.
@@ -351,10 +351,7 @@ new Tram\Track([
 ]);
 ```
 
-### Validating scheme
-
-
-### Filesize validating scheme
+### Example #2
 Let's limit filesize differently depending on the type of file:
 ```php
 namespace Tram\Scheme\Validate;
