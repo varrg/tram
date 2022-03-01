@@ -3,7 +3,6 @@ Adjust logic by passing [options](#options) to the constructor.
 
 ## Renaming
 Filenames are stripped of leading and trailing space, and trailing dot.
-This is also applied everytime the file is renamed.
 
 By default, existing files are not overwritten but applied a renaming scheme instead.
 
